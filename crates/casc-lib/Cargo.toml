@@ -1,6 +1,6 @@
 [package]
 name = "casc-lib"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Pure Rust library for reading World of Warcraft CASC archives"
 license = "MIT"
