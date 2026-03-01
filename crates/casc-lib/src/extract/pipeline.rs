@@ -8,13 +8,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 
 use crate::blte::decoder::decode_blte_with_keys;
 use crate::blte::encryption::TactKeyStore;
-use crate::config::build_config::{config_path, parse_build_config, BuildConfig};
-use crate::config::build_info::{list_products, parse_build_info, BuildInfo};
+use crate::config::build_config::{BuildConfig, config_path, parse_build_config};
+use crate::config::build_info::{BuildInfo, list_products, parse_build_info};
 use crate::encoding::parser::EncodingFile;
 use crate::error::{CascError, Result};
 use crate::listfile::downloader::load_or_download;

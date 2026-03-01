@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use casc_lib::config::build_info::{list_products, parse_build_info};
 use casc_lib::extract::{
-    extract_all, extract_single_file, list_files, CascStorage, ExtractionConfig, OpenConfig,
+    CascStorage, ExtractionConfig, OpenConfig, extract_all, extract_single_file, list_files,
 };
 use indicatif::{ProgressBar, ProgressStyle};
 
