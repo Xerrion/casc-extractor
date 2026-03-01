@@ -80,13 +80,14 @@ mod tests {
 
     #[test]
     fn cache_path_construction() {
-        let path = cache_path(Path::new("F:\\output"));
-        assert_eq!(path, PathBuf::from("F:\\output\\.casc-meta\\listfile.csv"));
+        let base = PathBuf::from("some_output");
+        let path = cache_path(&base);
+        assert_eq!(path, base.join(".casc-meta").join("listfile.csv"));
     }
 
     #[test]
     fn cache_not_fresh_when_missing() {
-        let path = Path::new("F:\\nonexistent\\file.csv");
+        let path = Path::new("nonexistent_dir/file.csv");
         assert!(!is_cache_fresh(path, std::time::Duration::from_secs(86400)));
     }
 }
