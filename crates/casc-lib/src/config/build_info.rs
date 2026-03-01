@@ -37,6 +37,14 @@ pub struct BuildInfo {
     pub keyring: String,
 }
 
+/// Returns all available products and their versions from parsed build info entries.
+pub fn list_products(entries: &[BuildInfo]) -> Vec<(&str, &str)> {
+    entries
+        .iter()
+        .map(|e| (e.product.as_str(), e.version.as_str()))
+        .collect()
+}
+
 /// Parse a `.build.info` BPSV (Bar-Pipe Separated Values) file.
 ///
 /// The first line contains column definitions like `Name!TYPE:SIZE|...`.
@@ -154,5 +162,22 @@ mod tests {
         let data = "Branch!STRING:0|Active!DEC:1|Build Key!HEX:16|Product!STRING:0\n";
         let infos = parse_build_info(data).unwrap();
         assert!(infos.is_empty());
+    }
+
+    #[test]
+    fn list_products_returns_all() {
+        let infos = parse_build_info(FIXTURE).unwrap();
+        let products = list_products(&infos);
+        assert_eq!(products.len(), 2);
+        assert_eq!(products[0].0, "wow");
+        assert_eq!(products[0].1, "12.0.1.66192");
+        assert_eq!(products[1].0, "wow_anniversary");
+        assert_eq!(products[1].1, "");
+    }
+
+    #[test]
+    fn list_products_empty_entries() {
+        let products = list_products(&[]);
+        assert!(products.is_empty());
     }
 }

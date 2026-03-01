@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
+use casc_lib::config::build_info::{list_products, parse_build_info};
 use casc_lib::extract::{
-    CascStorage, ExtractionConfig, OpenConfig, extract_all, extract_single_file, list_files,
+    extract_all, extract_single_file, list_files, CascStorage, ExtractionConfig, OpenConfig,
 };
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -26,7 +27,7 @@ pub struct CascArgs {
     #[arg(default_value = ".")]
     pub input: PathBuf,
 
-    /// Product to extract (wow, wow_classic, wow_anniversary)
+    /// Product to extract (e.g. wow, wow_classic, wow_classic_era, wow_anniversary)
     #[arg(short = 'p', long)]
     pub product: Option<String>,
 
@@ -105,7 +106,7 @@ pub enum Commands {
         #[arg(short = 'o', long)]
         output: PathBuf,
 
-        /// Product to extract (wow, wow_classic, wow_anniversary)
+        /// Product to extract (e.g. wow, wow_classic, wow_classic_era, wow_anniversary)
         #[arg(short = 'p', long)]
         product: Option<String>,
 
@@ -309,6 +310,36 @@ fn cmd_list(
 }
 
 fn cmd_info(open_config: &OpenConfig) -> casc_lib::error::Result<()> {
+    // Parse .build.info first to discover available products
+    let build_info_path = open_config.install_dir.join(".build.info");
+    let build_info_content = std::fs::read_to_string(&build_info_path)?;
+    let all_entries = parse_build_info(&build_info_content)?;
+
+    // If no product specified, list all available products and exit
+    if open_config.product.is_none() {
+        let products = list_products(&all_entries);
+        if products.is_empty() {
+            println!("No products found in .build.info");
+        } else {
+            println!("Available products:");
+            let max_name_len = products
+                .iter()
+                .map(|(name, _)| name.len())
+                .max()
+                .unwrap_or(0);
+            for (name, version) in &products {
+                if version.is_empty() {
+                    println!("  {:<width$}", name, width = max_name_len);
+                } else {
+                    println!("  {:<width$}  {}", name, version, width = max_name_len);
+                }
+            }
+            println!();
+            println!("Use -p <product> to select a product for detailed info.");
+        }
+        return Ok(());
+    }
+
     tracing::info!("Opening CASC storage...");
     let storage = CascStorage::open(open_config)?;
     let info = storage.info();

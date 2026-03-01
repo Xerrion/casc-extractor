@@ -98,11 +98,16 @@ for (fdid, path) in &files {
 
 ## Supported Products
 
-| Product           | Flag              |
-|-------------------|-------------------|
-| Retail            | `wow`             |
-| Classic           | `wow_classic`     |
-| Anniversary       | `wow_anniversary` |
+| Product           | Flag                | Description                      |
+|-------------------|---------------------|----------------------------------|
+| Retail            | `wow`               | The War Within, current live     |
+| Classic           | `wow_classic`       | Current classic expansion        |
+| Classic Era       | `wow_classic_era`   | Vanilla Classic (1.x)            |
+| Anniversary       | `wow_anniversary`   | 20th Anniversary edition         |
+| Retail PTR        | `wowt`              | Public Test Realm                |
+| Classic PTR       | `wow_classic_ptr`   | Classic PTR                      |
+
+Any product present in `.build.info` is supported. Use `casc-extractor info <path>` to list installed products.
 
 Pass the product flag with `-p` on the CLI, or set it via `OpenConfig::product` in the library.
 

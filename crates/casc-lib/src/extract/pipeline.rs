@@ -8,13 +8,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
 
 use crate::blte::decoder::decode_blte_with_keys;
 use crate::blte::encryption::TactKeyStore;
-use crate::config::build_config::{BuildConfig, config_path, parse_build_config};
-use crate::config::build_info::{BuildInfo, parse_build_info};
+use crate::config::build_config::{config_path, parse_build_config, BuildConfig};
+use crate::config::build_info::{list_products, parse_build_info, BuildInfo};
 use crate::encoding::parser::EncodingFile;
 use crate::error::{CascError, Result};
 use crate::listfile::downloader::load_or_download;
@@ -220,7 +220,13 @@ impl CascStorage {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Select the appropriate BuildInfo entry by product filter or take first active.
+/// Select the appropriate BuildInfo entry by product filter or auto-select.
+///
+/// When no product is specified:
+/// - If there is exactly one entry, auto-select it.
+/// - If there are multiple entries, return an error listing available products.
+///
+/// When a product is specified but not found, the error lists available products.
 fn select_build_info(entries: &[BuildInfo], product: Option<&str>) -> Result<BuildInfo> {
     if entries.is_empty() {
         return Err(CascError::InvalidFormat("no entries in .build.info".into()));
@@ -231,16 +237,32 @@ fn select_build_info(entries: &[BuildInfo], product: Option<&str>) -> Result<Bui
             .iter()
             .find(|e| e.active && e.product == p)
             .or_else(|| entries.iter().find(|e| e.product == p)),
-        None => entries.iter().find(|e| e.active),
+        None => {
+            if entries.len() == 1 {
+                Some(&entries[0])
+            } else {
+                entries.iter().find(|e| e.active)
+            }
+        }
     };
 
     selected.cloned().ok_or_else(|| {
-        let filter_desc = product
-            .map(|p| format!("product '{p}'"))
-            .unwrap_or_else(|| "active".into());
-        CascError::InvalidFormat(format!(
-            "no matching entry in .build.info for {filter_desc}"
-        ))
+        let available: Vec<String> = list_products(entries)
+            .iter()
+            .map(|(name, _)| (*name).to_string())
+            .collect();
+        let available_str = available.join(", ");
+        match product {
+            Some(p) => CascError::InvalidFormat(format!(
+                "product '{}' not found. Available products: {}",
+                p, available_str
+            )),
+            None => CascError::InvalidFormat(format!(
+                "multiple products found and no product specified. Available products: {}. \
+                 Use -p <product> to select one.",
+                available_str
+            )),
+        }
     })
 }
 
@@ -836,6 +858,79 @@ mod tests {
 
         let result = select_build_info(&entries, Some("nonexistent"));
         assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("nonexistent"),
+            "Error should mention the requested product"
+        );
+        assert!(
+            err_msg.contains("wow"),
+            "Error should list available products"
+        );
+    }
+
+    #[test]
+    fn select_build_info_auto_select_single() {
+        let entries = vec![BuildInfo {
+            branch: "eu".into(),
+            active: true,
+            build_key: "abc".into(),
+            cdn_key: "".into(),
+            cdn_path: "".into(),
+            cdn_hosts: vec![],
+            version: "1.0".into(),
+            product: "wow_classic_era".into(),
+            tags: "".into(),
+            keyring: "".into(),
+        }];
+
+        // No product specified, single entry -> auto-select
+        let selected = select_build_info(&entries, None).unwrap();
+        assert_eq!(selected.product, "wow_classic_era");
+    }
+
+    #[test]
+    fn select_build_info_error_lists_products() {
+        let entries = vec![
+            BuildInfo {
+                branch: "eu".into(),
+                active: true,
+                build_key: "abc".into(),
+                cdn_key: "".into(),
+                cdn_path: "".into(),
+                cdn_hosts: vec![],
+                version: "1.0".into(),
+                product: "wow".into(),
+                tags: "".into(),
+                keyring: "".into(),
+            },
+            BuildInfo {
+                branch: "eu".into(),
+                active: true,
+                build_key: "xyz".into(),
+                cdn_key: "".into(),
+                cdn_path: "".into(),
+                cdn_hosts: vec![],
+                version: "2.0".into(),
+                product: "wow_classic".into(),
+                tags: "".into(),
+                keyring: "".into(),
+            },
+        ];
+
+        // Product not found -> error lists available products
+        let result = select_build_info(&entries, Some("wow_classicera"));
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("wow_classicera"),
+            "Error should mention the requested product"
+        );
+        assert!(err_msg.contains("wow"), "Error should list 'wow'");
+        assert!(
+            err_msg.contains("wow_classic"),
+            "Error should list 'wow_classic'"
+        );
     }
 
     // Integration tests - only run with real WoW install
