@@ -40,8 +40,7 @@ jobs:
       - name: Update crate versions
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Strip leading 'v' for Cargo.toml
-          CARGO_VERSION="${VERSION#v}"
+          CARGO_VERSION="$VERSION"
           echo "Setting version to $CARGO_VERSION"
 
           # Update casc-lib version
