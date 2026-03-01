@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.2.0] - 2026-03-01
 
 ### Bug Fixes
 
@@ -17,6 +17,11 @@ All notable changes to this project will be documented in this file.
 - Add changelog auto-update workflow on release tags
 - Changelog workflow creates PR instead of pushing directly
 - Auto-versioning release flow with git-cliff bump and PR-based tagging
+- Use plain semver tags instead of v-prefixed tags
+
+### Styling
+
+- Fix import ordering for edition 2024 rustfmt
 
 ## [0.1.0] - 2026-03-01
 
