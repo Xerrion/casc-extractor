@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 casc-lib = { path = "../casc-lib", version = "0.2.0" }
-clap = { version = "4.5.60", features = ["derive"] }
-indicatif = "0.18.4"
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+clap = { version = "4.6", features = ["derive"] }
+indicatif = "0.18"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
