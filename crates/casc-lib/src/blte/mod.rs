@@ -4,7 +4,8 @@
 //! encrypted game data. A BLTE blob starts with a 4-byte `"BLTE"` magic, a
 //! header-size field, and then either a single data block (when header size is 0)
 //! or a chunk table describing multiple blocks. Each block carries a one-byte
-//! mode prefix: `N` (raw), `Z` (zlib), `4` (LZ4), or `E` (encrypted).
+//! mode prefix: `N` (raw), `Z` (zlib), `4` (LZ4), `E` (encrypted), or
+//! `F` (recursive BLTE frame).
 
 /// Block-level compression and mode dispatch (N, Z, 4, E, F).
 pub mod compression;
