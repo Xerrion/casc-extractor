@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-07-27
+
+### Miscellaneous
+
+- Update dependencies to latest version (#2)
+- *(deps)* Bump quinn-proto from 0.11.13 to 0.11.14 (#3)
+- *(deps)* Bump rustls-webpki from 0.103.9 to 0.103.10 (#5)
+
 ## [0.2.0] - 2026-03-01
 
 ### Bug Fixes
@@ -18,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - Changelog workflow creates PR instead of pushing directly
 - Auto-versioning release flow with git-cliff bump and PR-based tagging
 - Use plain semver tags instead of v-prefixed tags
+- *(release)* 0.2.0 (#1)
 
 ### Styling
 

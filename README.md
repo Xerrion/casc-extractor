@@ -11,7 +11,7 @@ A pure Rust CLI tool and library for reading World of Warcraft CASC (Content Add
 
 ## Features
 
-- **BLTE decoding** - supports N (plain), Z (zlib), and 4 (LZ4) compression modes
+- **BLTE decoding** - supports N (plain), Z (zlib), 4 (LZ4), and F (recursive frame) compression modes
 - **TACT encryption** - Salsa20 and ARC4 decryption with configurable key stores
 - **LZ4 sub-block decompression** - handles chunked BLTE frames with LZ4 compression
 - **Parallel extraction** - multi-threaded file extraction powered by rayon
