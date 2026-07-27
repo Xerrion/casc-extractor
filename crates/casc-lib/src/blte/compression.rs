@@ -7,7 +7,8 @@
 //! - `4` (0x34) - LZ4 block compression with sub-block framing.
 //! - `E` (0x45) - encrypted block; after decryption the inner payload is
 //!   recursively decoded (its first byte is the inner compression mode).
-//! - `F` (0x46) - recursive BLTE (not currently supported).
+//! - `F` (0x46) - recursive BLTE frame; the payload is a complete nested
+//!   BLTE stream that is decoded recursively.
 
 use super::encryption::{TactKeyStore, decrypt_block as decrypt_encrypted_block};
 use crate::error::{CascError, Result};
@@ -27,9 +28,7 @@ pub fn decode_block_with_keys(block: &[u8], keystore: Option<&TactKeyStore>) -> 
         b'Z' => decode_zlib(&block[1..]),
         b'4' => decode_lz4(&block[1..]),
         b'E' => decode_encrypted(&block[1..], keystore),
-        b'F' => Err(CascError::InvalidFormat(
-            "recursive BLTE (mode F) not supported".into(),
-        )),
+        b'F' => decode_frame(&block[1..], keystore),
         mode => Err(CascError::InvalidFormat(format!(
             "unknown BLTE mode: 0x{:02X}",
             mode
@@ -53,6 +52,11 @@ fn decode_encrypted(data: &[u8], keystore: Option<&TactKeyStore>) -> Result<Vec<
     let decrypted = decrypt_encrypted_block(data, keystore)?;
     // Recursively decode the inner block (which starts with a mode byte: N, Z, 4, etc.)
     decode_block_with_keys(&decrypted, Some(keystore))
+}
+
+fn decode_frame(data: &[u8], keystore: Option<&TactKeyStore>) -> Result<Vec<u8>> {
+    // Mode F wraps a complete nested BLTE stream (starting with "BLTE" magic).
+    super::decoder::decode_blte_with_keys(data, keystore)
 }
 
 fn decode_raw(data: &[u8]) -> Result<Vec<u8>> {
@@ -235,6 +239,47 @@ mod tests {
 
         let result = decode_block_with_keys(&block, Some(&ks)).unwrap();
         assert_eq!(result, b"hello");
+    }
+
+    #[test]
+    fn mode_f_recursive_blte() {
+        // Mode F wraps a complete nested BLTE stream
+        let mut inner = Vec::new();
+        inner.extend_from_slice(b"BLTE");
+        inner.extend_from_slice(&0u32.to_be_bytes()); // single-block
+        inner.push(b'N');
+        inner.extend_from_slice(b"nested content");
+
+        let mut block = vec![b'F'];
+        block.extend_from_slice(&inner);
+
+        let result = decode_block(&block).unwrap();
+        assert_eq!(result, b"nested content");
+    }
+
+    #[test]
+    fn mode_f_nested_zlib() {
+        let original = b"nested zlib payload";
+        let compressed = zlib_compress(original);
+
+        let mut inner = Vec::new();
+        inner.extend_from_slice(b"BLTE");
+        inner.extend_from_slice(&0u32.to_be_bytes());
+        inner.push(b'Z');
+        inner.extend_from_slice(&compressed);
+
+        let mut block = vec![b'F'];
+        block.extend_from_slice(&inner);
+
+        let result = decode_block(&block).unwrap();
+        assert_eq!(result, original);
+    }
+
+    #[test]
+    fn mode_f_invalid_inner_errors() {
+        // Payload without a valid nested BLTE magic must fail
+        let block = vec![b'F', b'X', b'X', b'X', b'X', 0, 0, 0, 0];
+        assert!(decode_block(&block).is_err());
     }
 
     #[test]

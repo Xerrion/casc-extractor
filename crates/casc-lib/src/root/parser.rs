@@ -149,12 +149,15 @@ fn detect_format(data: &[u8]) -> Result<(RootFormat, usize)> {
     let field_at_4 = read_le_u32(&data[4..8]);
 
     // For pre-10.1.7 MFST: header is magic(4) + total_count(4) + named_count(4) = 12 bytes.
-    // For 10.1.7+: offset 4 = header_size (24), offset 8 = version (1 or 2).
-    // Distinguish: if field_at_4 looks like a reasonable header_size (e.g. 24),
-    // it's the 10.1.7+ format. If it's a huge number, it's the old 12-byte header
-    // where field_at_4 is total_file_count.
-    if field_at_4 == 24 && data.len() >= 24 {
+    // For 10.1.7+: offset 4 = header_size, offset 8 = version (1 or 2).
+    // Distinguish: if field_at_4 looks like a reasonable header_size (small value,
+    // at least 12 bytes), it's the 10.1.7+ format. If it's a huge number, it's the
+    // old 12-byte header where field_at_4 is total_file_count. Newer clients may
+    // grow the header, so honor the declared header_size rather than requiring
+    // exactly 24 bytes - blocks always start at header_size.
+    if (12..=1024).contains(&field_at_4) && data.len() >= field_at_4 as usize {
         // 10.1.7+ format with explicit header_size and version
+        let header_size = field_at_4 as usize;
         let version = read_le_u32(&data[8..12]);
         let format = match version {
             1 => RootFormat::MfstV1,
@@ -163,7 +166,7 @@ fn detect_format(data: &[u8]) -> Result<(RootFormat, usize)> {
                 return Err(CascError::UnsupportedVersion(version));
             }
         };
-        Ok((format, 24))
+        Ok((format, header_size))
     } else {
         // Pre-10.1.7 MFST: 12-byte header (magic + total_count + named_count)
         // Block format is v1
@@ -553,6 +556,52 @@ mod tests {
         assert!(entry.content_flags.has(ContentFlags::LOAD_ON_WINDOWS));
         assert!(entry.content_flags.has_no_name_hash());
         assert_eq!(entry.name_hash, None);
+    }
+
+    #[test]
+    fn mfst_extended_header_size() {
+        // Newer clients may grow the MFST header - the declared header_size
+        // must be honored so blocks are read from the right offset.
+        let mut data = Vec::new();
+        // MFST header (32 bytes, larger than the usual 24)
+        data.extend_from_slice(&MFST_MAGIC_BE.to_le_bytes());
+        data.extend_from_slice(&32u32.to_le_bytes()); // header_size = 32
+        data.extend_from_slice(&2u32.to_le_bytes()); // version = 2
+        data.extend_from_slice(&1u32.to_le_bytes()); // total_file_count
+        data.extend_from_slice(&0u32.to_le_bytes()); // named_file_count
+        data.extend_from_slice(&[0u8; 12]); // extra header fields / padding
+        assert_eq!(data.len(), 32);
+
+        // Block header v2
+        data.extend_from_slice(&1u32.to_le_bytes()); // num_records = 1
+        data.extend_from_slice(&0x2u32.to_le_bytes()); // locale_flags = enUS
+        data.extend_from_slice(&0x8u32.to_le_bytes()); // unk1
+        data.extend_from_slice(&0x10000000u32.to_le_bytes()); // unk2 = NoNameHash
+        data.push(0); // unk3
+
+        data.extend_from_slice(&77i32.to_le_bytes()); // delta (fdid = 77)
+        data.extend_from_slice(&[0xCD; 16]); // ckey
+
+        let root = RootFile::parse(&data).unwrap();
+        assert_eq!(root.format(), RootFormat::MfstV2);
+        assert_eq!(root.len(), 1);
+        let entry = root.find_by_fdid(77, LocaleFlags::EN_US).unwrap();
+        assert_eq!(entry.ckey, [0xCD; 16]);
+    }
+
+    #[test]
+    fn mfst_unsupported_version_errors() {
+        let mut data = Vec::new();
+        data.extend_from_slice(&MFST_MAGIC_BE.to_le_bytes());
+        data.extend_from_slice(&24u32.to_le_bytes()); // header_size
+        data.extend_from_slice(&99u32.to_le_bytes()); // version = 99 (unknown)
+        data.extend_from_slice(&[0u8; 12]);
+
+        let err = match RootFile::parse(&data) {
+            Err(e) => e,
+            Ok(_) => panic!("expected UnsupportedVersion error"),
+        };
+        assert!(matches!(err, CascError::UnsupportedVersion(99)));
     }
 
     #[test]
