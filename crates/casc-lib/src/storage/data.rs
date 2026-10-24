@@ -83,7 +83,7 @@ impl DataStore {
         for path in glob::glob(&pattern_str)
             .map_err(|e| CascError::InvalidFormat(format!("glob error: {e}")))?
         {
-            let path = path.map_err(|e| CascError::Io(e.into_error()))?;
+            let path = path.map_err(|e| CascError::Io(e.into()))?;
             let fname = match path.file_name().and_then(|f| f.to_str()) {
                 Some(f) => f.to_owned(),
                 None => continue,

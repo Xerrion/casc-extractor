@@ -173,7 +173,7 @@ impl CascStorage {
                 hash: hex::encode(ekey),
             })?;
 
-        let blte_data = self.data.read_raw(
+        let blte_data = self.data.read_entry(
             idx_entry.archive_number,
             idx_entry.archive_offset,
             idx_entry.size,
