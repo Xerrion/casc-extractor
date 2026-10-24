@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Bug Fixes
+
+- Strip CASC archive entry headers before decoding files read by content key or FileDataID.
+
+### Miscellaneous
+
+- Update direct dependencies to their latest stable releases and refresh transitive dependencies.
+- Replace deprecated glob error conversions.
+
 ## [0.2.1] - 2026-07-27
 
 ### Miscellaneous
